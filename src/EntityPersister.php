@@ -15,11 +15,17 @@ use ReflectionClass;
 use WeakMap;
 use function array_key_exists;
 use function array_keys;
+use function array_map;
+use function array_pop;
+use function array_reverse;
+use function array_unique;
+use function array_values;
 use function count;
 use function get_class;
 use function implode;
 use function is_numeric;
 use function reset;
+use function str_repeat;
 
 /**
  * Class EntityPersister
@@ -45,10 +51,10 @@ class EntityPersister
      * There is no need to capture new entities.
      *
      * @phpstan-template T
-     * @phpstan-param T ...$tracking
-     * @param object ...$tracking
+     * @phpstan-param T[] $tracking
+     * @param object[] $tracking
      */
-    public function capture(...$tracking): void
+    public function capture(array $tracking): void
     {
         $currentEntitySnapshots = $this->dumpEntity($tracking);
 
@@ -59,10 +65,10 @@ class EntityPersister
 
     /**
      * @phpstan-template T
-     * @phpstan-param T ...$entities
-     * @param object[] ...$entities
+     * @phpstan-param T[] $entities
+     * @param object[] $entities
      */
-    public function flush(...$entities): void
+    public function flush(array $entities): void
     {
         if (count($entities) === 0) {
             return;
@@ -79,10 +85,10 @@ class EntityPersister
             }
         }
 
-        $reflection = new ReflectionClass($metadata->getClassName());
-
-        $idProperty = $reflection->getProperty($metadata->getIdColumn());
-        $idProperty->setAccessible(true);
+        /** @phpstan-var array<int, array{object, EntitySnapshot}> $insertSnapshotsGroup */
+        $insertSnapshotsGroup = [];
+        /** @phpstan-var array<EntitySnapshot> $updateSnapshots */
+        $updateSnapshots = [];
 
         foreach ($entities as $entity) {
             /** @var EntitySnapshot $entitySnapshot */
@@ -123,44 +129,55 @@ class EntityPersister
             ));
 
             if ($isInsert === true) {
-                // insert
-                $sql = 'INSERT INTO ' . $metadata->getTableName() . '(' . implode(', ', array_keys($entitySnapshot->getData())) . ')VALUES(';
-
-                $i = 0;
-                $params = [];
-                foreach ($entitySnapshot->getData() as $key => $value) {
-                    $params[':val_' . (++$i)] = $value;
-                }
-
-                $sql .= implode(', ', array_keys($params)) . ')';
+                $insertSnapshotsGroup[] = [$entity, $entitySnapshot];
             } else {
-                $sql = 'UPDATE ' . $metadata->getTableName() . ' SET ';
+                $updateSnapshots[] = $entitySnapshot;
+            }
+        }
 
-                $i = 0;
-                $len = count($entitySnapshot->getData());
-                $params = [];
+        if (count($insertSnapshotsGroup) > 0) {
+            $reflection = new ReflectionClass($metadata->getClassName());
 
-                foreach ($entitySnapshot->getData() as $key => $value) {
-                    $i++;
-                    $parameterKey = ":val_$i";
-                    $sql .= $key . ' = ' . $parameterKey . ($i !== $len ? ', ' : '');
-                    $params[$parameterKey] = $value;
+            $idProperty = $reflection->getProperty($metadata->getIdColumn());
+            $idProperty->setAccessible(true);
+
+            $properties = $metadata->getProperties();
+            unset($properties[$metadata->getIdColumn()]);
+
+            $propertyNames = array_map(static fn (ClassProperty $property): string => "`{$property->getNameForDb()}`", $properties);
+            $insertPreparedStatement = $this->databaseConnection->prepare(
+                'INSERT INTO ' . $metadata->getTableName() . '(' . implode(', ', $propertyNames)
+                . ')VALUES(?' . str_repeat(',?', count($properties) - 1) . ')',
+            );
+
+            $insertSnapshotsGroup = array_reverse($insertSnapshotsGroup);
+            $propertiesCount = count($properties);
+
+            while ([$entity, $entitySnapshot] = array_pop($insertSnapshotsGroup)) {
+                if ($propertiesCount !== count($entitySnapshot->getData())) {
+                    throw new LogicException('Unexpected mismatch in properties count and entity snapshot data count');
                 }
 
-                $sql .= ' WHERE id = :id';
-                $params[':id'] = $entitySnapshot->getId();
-            }
-
-            $stmt = $this->databaseConnection->prepare($sql);
-
-            foreach ($params as $key => $value) {
-                $stmt->bindValue($key, $value);
-            }
-
-            $stmt->execute();
-
-            if ($isInsert === true) {
+                $insertPreparedStatement->execute(array_values($entitySnapshot->getData()));
                 $idProperty->setValue($entity, $this->databaseConnection->getLastInsertId());
+            }
+
+            unset($reflection, $idProperty, $propertyNames);
+        }
+
+        if (count($updateSnapshots) > 0) {
+            $updateSnapshots = array_reverse($updateSnapshots);
+
+            while ($entitySnapshot = array_pop($updateSnapshots)) {
+                $updatePreparedStatement = $this->databaseConnection->prepare(
+                    'UPDATE ' . $metadata->getTableName() . ' SET '
+                    . implode(', ', array_map(static fn (string $key): string => "`$key` = ?", array_keys($entitySnapshot->getData())))
+                    . ' WHERE `id` = ?',
+                );
+
+                $params = array_values($entitySnapshot->getData());
+                $params[] = $entitySnapshot->getId();
+                $updatePreparedStatement->execute($params);
             }
         }
     }
@@ -242,11 +259,11 @@ class EntityPersister
                     case Property::TYPE_DATE:
                         $dt = $relProperty->getValue($entity);
 
-                        $entityData[$propName] = $propertyAttribute->dtFormat && $dt instanceof DateTimeInterface ? $dt->format($propertyAttribute->dtFormat) : null;
+                        $entityData[$propertyName] = $propertyAttribute->dtFormat && $dt instanceof DateTimeInterface ? $dt->format($propertyAttribute->dtFormat) : null;
                         break;
 
                     case Property::TYPE_BOOL:
-                        $entityData[$propName] = $relProperty->getValue($entity) === true ? 1 : 0;
+                        $entityData[$propertyName] = $relProperty->getValue($entity) === true ? 1 : 0;
                         break;
 
                     case Property::TYPE_FLOAT:
@@ -254,16 +271,16 @@ class EntityPersister
                         $float = $relProperty->getValue($entity);
 
                         if (is_numeric($float) === true) {
-                            $entityData[$propName] = $propertyAttribute->type === Property::TYPE_FLOAT
+                            $entityData[$propertyName] = $propertyAttribute->type === Property::TYPE_FLOAT
                                 ? (float)$float
                                 : (int)$float;
                         } else {
-                            $entityData[$propName] = null;
+                            $entityData[$propertyName] = null;
                         }
                         break;
 
                     default:
-                        $entityData[$propName] = $relProperty->getValue($entity);
+                        $entityData[$propertyName] = $relProperty->getValue($entity);
                         break;
                 }
             }

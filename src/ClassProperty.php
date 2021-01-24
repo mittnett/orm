@@ -12,4 +12,9 @@ class ClassProperty
         public ?Property $propertyAttribute,
     ) {
     }
+
+    public function getNameForDb(): string
+    {
+        return $this->propertyAttribute->name ?? $this->name;
+    }
 }
