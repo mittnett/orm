@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require __DIR__ . '/vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 
 $pdo = new PDO('mysql:host=127.0.0.1;dbname=app;charset=utf8', 'root', 'secret', [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,

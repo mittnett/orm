@@ -1,31 +1,35 @@
 {
-	"name": "hblib/orm",
-	"description": "",
-	"license": "MIT",
-	"repositories": [
-		{
-			"type": "composer",
-			"url": "https://repo.hultberg.no",
-			"options": {
-				"ssl": {
-					"verify_peer": "true"
-				}
-			}
-		}
-	],
-	"require": {
-		"php": ">=8.0.0 <9",
-		"ext-pdo": "*",
-		"psr/event-dispatcher": "^1.0",
-		"hblib/dbal": "^v1.0.0"
-	},
-	"autoload": {
-		"psr-4": {
-			"HbLib\\ORM\\": ["src"]
-		}
-	},
-	"require-dev": {
-		"phpstan/phpstan": "^0.12.64",
-		"fakerphp/faker": "^1.13"
-	}
+  "name": "hblib/orm",
+  "description": "",
+  "license": "MIT",
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://repo.hultberg.no",
+      "options": {
+        "ssl": {
+          "verify_peer": "true"
+        }
+      }
+    }
+  ],
+  "require": {
+    "php": ">=8.0.0 <9",
+    "ext-pdo": "*",
+    "psr/event-dispatcher": "^1.0",
+    "hblib/dbal": "^v1.1.0"
+  },
+  "require-dev": {
+    "phpstan/phpstan": "^0.12.64",
+    "fakerphp/faker": "^1.13",
+    "roave/security-advisories": "dev-latest"
+  },
+  "autoload": {
+    "psr-4": {
+      "HbLib\\ORM\\": ["src"]
+    }
+  },
+  "config": {
+    "optimize-autoloader": true
+  }
 }
