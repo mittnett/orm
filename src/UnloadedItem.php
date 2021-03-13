@@ -8,7 +8,7 @@ use LogicException;
 /**
  * Class UnloadedItem
  * @package HbLib\ORM
- * @phpstan-template-covariant T of IdentifiableEntityInterface
+ * @phpstan-template T of IdentifiableEntityInterface
  * @phpstan-implements Item<T>
  */
 final class UnloadedItem implements Item
@@ -17,20 +17,6 @@ final class UnloadedItem implements Item
     {
     }
 
-    /**
-     * @template E of IdentifiableEntityInterface
-     * @param class-string<E> $className
-     * @param int $id
-     * @return UnloadedItem<E>
-     */
-    public static function create(string $className, int $id): UnloadedItem
-    {
-        return new self($id);
-    }
-
-    /**
-     * @return T
-     */
     public function get()
     {
         throw new LogicException('Unloaded items only know their ID');

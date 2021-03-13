@@ -8,7 +8,7 @@ use function is_int;
 /**
  * Class ObjectItem
  * @package HbLib\ORM
- * @phpstan-template-covariant T of IdentifiableEntityInterface
+ * @phpstan-template T of IdentifiableEntityInterface
  * @phpstan-implements Item<T>
  */
 final class ObjectItem implements Item
@@ -27,9 +27,14 @@ final class ObjectItem implements Item
         $this->object = $object;
     }
 
-    public function getId(): int
+    /**
+     * @template TE of IdentifiableEntityInterface
+     * @param TE $object
+     * @return int
+     */
+    private static function getObjectId(object $object): int
     {
-        $id = $this->object->getId();
+        $id = $object->getId();
 
         if (is_int($id) === true) {
             return $id;
@@ -38,9 +43,11 @@ final class ObjectItem implements Item
         throw new UnpersistedException();
     }
 
-    /**
-     * @return T
-     */
+    public function getId(): int
+    {
+        return self::getObjectId($this->object);
+    }
+
     public function get()
     {
         return $this->object;

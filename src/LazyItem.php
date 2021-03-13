@@ -12,7 +12,7 @@ use function array_pop;
 /**
  * Class LazyItem
  * @package HbLib\ORM
- * @phpstan-template-covariant T of IdentifiableEntityInterface
+ * @phpstan-template T of IdentifiableEntityInterface
  * @phpstan-implements Item<T>
  */
 final class LazyItem implements Item
@@ -35,9 +35,6 @@ final class LazyItem implements Item
         return $this->id;
     }
 
-    /**
-     * @return T
-     */
     public function get()
     {
         return $this->loadedItem ??= $this->initialize();

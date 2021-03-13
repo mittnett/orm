@@ -6,7 +6,7 @@ namespace HbLib\ORM;
 /**
  * Interface Item
  * @package HbLib\ORM
- * @phpstan-template-covariant T of IdentifiableEntityInterface
+ * @phpstan-template T of IdentifiableEntityInterface
  */
 interface Item
 {
