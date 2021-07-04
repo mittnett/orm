@@ -102,7 +102,7 @@ class EntityHydrator
         $immutableDateTimeCache = [];
 
         foreach ($rows as $row) {
-            $entityId = $className . '_' . $row[$idColumn];
+            $entityId = $className . '_' . $row[$idColumn->getNameForDb()];
 
             if ($reuse === true && array_key_exists($entityId, $this->entityReferences) === true) {
                 $ref = $this->entityReferences[$entityId]->get();

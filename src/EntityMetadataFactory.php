@@ -55,6 +55,7 @@ class EntityMetadataFactory
 
         $classProperties = [];
 
+        /** @var ClassProperty|null $idColumn */
         $idColumn = null;
 
         foreach ($reflection->getProperties() as $property) {
@@ -77,10 +78,6 @@ class EntityMetadataFactory
 
                 if (!($attr instanceof HbLibAttrs\Property)) {
                     throw new LogicException('invalid instance');
-                }
-
-                if (count($property->getAttributes(HbLibAttrs\Id::class)) > 0) {
-                    $idColumn = $attr->name ?? $property->getName();
                 }
 
                 $classPropertyFactory['property'] = $attr;
@@ -106,6 +103,10 @@ class EntityMetadataFactory
                     $classPropertyFactory['property'],
                     $classPropertyFactory['relationship'],
                 );
+            }
+
+            if ($classPropertyFactory['property'] !== null && count($property->getAttributes(HbLibAttrs\Id::class)) > 0) {
+                $idColumn = $classProperties[$classPropertyFactory['name']];
             }
         }
 

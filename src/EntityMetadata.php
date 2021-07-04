@@ -17,13 +17,13 @@ class EntityMetadata
      * @phpstan-param class-string<T> $className
      * @param string $className
      * @param string $tableName
-     * @param string $idColumn
+     * @param ClassProperty $idColumn
      * @param array<string, ClassProperty> $properties
      */
     public function __construct(
         private string $className,
         private string $tableName,
-        private string $idColumn,
+        private ClassProperty $idColumn,
         private array $properties,
     ) {
         //
@@ -46,7 +46,7 @@ class EntityMetadata
         return $this->properties;
     }
 
-    public function getIdColumn(): string
+    public function getIdColumn(): ClassProperty
     {
         return $this->idColumn;
     }

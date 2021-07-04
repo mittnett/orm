@@ -78,6 +78,8 @@ class EntityPersister
         $entityClassName = get_class(reset($entities));
         $metadata = $this->metadataFactory->getMetadata($entityClassName);
 
+        $idColumn = $metadata->getIdColumn();
+
         foreach ($entities as $entity) {
             if (!($entity instanceof $entityClassName)) {
                 throw new LogicException('Multiple entities found!');
@@ -93,7 +95,14 @@ class EntityPersister
             /** @var EntitySnapshot $entitySnapshot */
             $entitySnapshot = $currentEntityDataStorage[$entity];
 
-            if ($entitySnapshot->getId() !== null) {
+            if ($idColumn instanceof ClassPropertyRelation) {
+                // when id column is a relation we must know about the entity before hand.
+                $isInsert = $this->entityChangesets->offsetExists($entity) === false;
+            } else {
+                $isInsert = $entitySnapshot->getId() === null;
+            }
+
+            if ($isInsert === false) {
                 $changedEntityData = [];
                 $currentEntityData = $entitySnapshot->getData();
 
@@ -122,7 +131,6 @@ class EntityPersister
             $entitySnapshot = new EntitySnapshot($entitySnapshot->getId(), $changedEntityData);
             unset($changedEntityData);
 
-            $isInsert = $entitySnapshot->getId() === null;
             $this->eventDispatcher->dispatch(new EntityChangeEvent(
                 $entity, $entitySnapshot, $isInsert ? EntityChangeEvent::MODE_INSERT : EntityChangeEvent::MODE_UPDATE
             ));
@@ -136,11 +144,16 @@ class EntityPersister
 
         $reflection = new ReflectionClass($metadata->getClassName());
 
-        $idProperty = $reflection->getProperty($metadata->getIdColumn());
+        $idProperty = $reflection->getProperty($idColumn->name);
         $idProperty->setAccessible(true);
 
         $metadataProperties = $metadata->getProperties();
-        unset($metadataProperties[$metadata->getIdColumn()]);
+
+        if (!($idColumn instanceof ClassPropertyRelation)) {
+            // when class property is not a relation we must not insert/update the column.
+            // FIXME: add tag for auto_increment
+            unset($metadataProperties[$idColumn->name]);
+        }
 
         if (count($insertSnapshotsGroup) > 0) {
             /** @phpstan-var array<string, array<array{object, EntitySnapshot}>> $insertSnapshotsGroupedByNumberOfProperties */
@@ -173,7 +186,14 @@ class EntityPersister
                     }
 
                     $insertPreparedStatement->execute(array_values($entitySnapshot->getData()));
-                    $idProperty->setValue($entity, $this->databaseConnection->getLastInsertId());
+
+                    if ($idColumn instanceof ClassPropertyRelation && ($idColumn->relationship instanceof OneToOne || $idColumn->relationship instanceof ManyToOne)) {
+                        // relation id property, set unloaded item for now.
+                        // FIXME: use LazyItem?
+                        $idProperty->setValue($entity, new UnloadedItem((int) $this->databaseConnection->getLastInsertId()));
+                    } else {
+                        $idProperty->setValue($entity, $this->databaseConnection->getLastInsertId());
+                    }
                 }
 
                 unset($firstEntitySnapshot, $definedPropertyDbNames);
@@ -229,7 +249,7 @@ class EntityPersister
         $metadata = $this->metadataFactory->getMetadata($entityClassName);
         $reflection = new ReflectionClass($metadata->getClassName());
 
-        $idProperty = $reflection->getProperty($metadata->getIdColumn());
+        $idProperty = $reflection->getProperty($metadata->getIdColumn()->name);
         $idProperty->setAccessible(true);
 
         $entityProperties = $metadata->getProperties();
@@ -237,15 +257,13 @@ class EntityPersister
         foreach ($entities as $entity) {
             $entityData = [];
 
-            $id = $idProperty->getValue($entity);
-
             foreach ($entityProperties as $propName => $classProperty) {
                 $propertyAttribute = $classProperty->propertyAttribute;
                 if ($propertyAttribute === null) {
                     continue;
                 }
 
-                if ($propName === $metadata->getIdColumn()) continue;
+                if ($propName === $metadata->getIdColumn()->name) continue;
 
                 $relProperty = $reflection->getProperty($propName);
                 $relProperty->setAccessible(true);
@@ -301,6 +319,14 @@ class EntityPersister
                         $entityData[$propName] = $relProperty->getValue($entity);
                         break;
                 }
+            }
+
+            $id = $idProperty->getValue($entity);
+
+            if ($id instanceof Item) {
+                // id is an item, get the ID of it and set to data.
+                $entityData[$idProperty->name] = $id->getId();
+                $id = $id->getId();
             }
 
             $result[$entity] = new EntitySnapshot($id, $entityData);

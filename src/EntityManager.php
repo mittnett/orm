@@ -60,7 +60,7 @@ class EntityManager
         $metadata = $this->metadataFactory->getMetadata($className);
 
         $sql = 'SELECT * FROM ' . $metadata->getTableName() . '
-        WHERE ' . $metadata->getIdColumn() . ' IN(?' . str_repeat(',?', count($ids) - 1) . ')';
+        WHERE ' . $metadata->getIdColumn()->getNameForDb() . ' IN(?' . str_repeat(',?', count($ids) - 1) . ')';
         if ($forUpdateLock === true) {
             $sql .= ' FOR UPDATE';
         }
