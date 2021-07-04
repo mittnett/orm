@@ -71,7 +71,7 @@ class EntityPersister
     {
         $currentEntityDataStorage = $this->dumpEntity($entities);
 
-        $entityClassName = get_class(reset($entities));
+        $entityClassName = get_class($entities[array_key_first($entities)]);
         $metadata = $this->metadataFactory->getMetadata($entityClassName);
 
         $idColumn = $metadata->getIdColumn();
@@ -226,7 +226,7 @@ class EntityPersister
     {
         $result = new WeakMap();
 
-        $firstEntity = reset($entities);
+        $firstEntity = $entities[array_key_first($entities)];
         $entityClassName = get_class($firstEntity);
         foreach ($entities as $entity) {
             if (!($entity instanceof $entityClassName)) {
