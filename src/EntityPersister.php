@@ -50,7 +50,7 @@ class EntityPersister
      * There is no need to capture new entities.
      *
      * @phpstan-template T
-     * @phpstan-param T[] $tracking
+     * @phpstan-param non-empty-array<T> $tracking
      * @param object[] $tracking
      */
     public function capture(array $tracking): void
@@ -64,15 +64,11 @@ class EntityPersister
 
     /**
      * @phpstan-template T
-     * @phpstan-param T[] $entities
+     * @phpstan-param non-empty-array<T> $entities
      * @param object[] $entities
      */
     public function flush(array $entities): void
     {
-        if (count($entities) === 0) {
-            return;
-        }
-
         $currentEntityDataStorage = $this->dumpEntity($entities);
 
         $entityClassName = get_class(reset($entities));
@@ -223,16 +219,12 @@ class EntityPersister
 
     /**
      * @phpstan-template T
-     * @phpstan-param T[] $entities
+     * @phpstan-param non-empty-array<T> $entities
      * @phpstan-return WeakMap<EntitySnapshot>
      */
     private function dumpEntity(array $entities): WeakMap
     {
         $result = new WeakMap();
-
-        if (count($entities) === 0) {
-            return $result;
-        }
 
         $firstEntity = reset($entities);
         $entityClassName = get_class($firstEntity);
