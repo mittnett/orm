@@ -4,8 +4,8 @@
   "license": "MIT",
   "repositories": [
     {
-      "type": "composer",
-      "url": "https://repo.hultberg.no",
+      "type": "vcs",
+      "url": "git@github.com:mittnett/dbal.git",
       "options": {
         "ssl": {
           "verify_peer": "true"
