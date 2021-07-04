@@ -91,11 +91,11 @@ class EntityPersister
             /** @var EntitySnapshot $entitySnapshot */
             $entitySnapshot = $currentEntityDataStorage[$entity];
 
-            if ($idColumn instanceof ClassPropertyRelation) {
+            if ($idColumn->idAttribute !== null && $idColumn->idAttribute->autoIncrement === true) {
+                $isInsert = $entitySnapshot->getId() === null;
+            } else {
                 // when id column is a relation we must know about the entity before hand.
                 $isInsert = $this->entityChangesets->offsetExists($entity) === false;
-            } else {
-                $isInsert = $entitySnapshot->getId() === null;
             }
 
             if ($isInsert === false) {
@@ -145,9 +145,8 @@ class EntityPersister
 
         $metadataProperties = $metadata->getProperties();
 
-        if (!($idColumn instanceof ClassPropertyRelation)) {
+        if ($idColumn->idAttribute !== null && $idColumn->idAttribute->autoIncrement === true) {
             // when class property is not a relation we must not insert/update the column.
-            // FIXME: add tag for auto_increment
             unset($metadataProperties[$idColumn->name]);
         }
 

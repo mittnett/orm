@@ -61,12 +61,14 @@ class EntityMetadataFactory
         foreach ($reflection->getProperties() as $property) {
             /** @phpstan-var array{
              * name: string,
+             * id: \HbLib\ORM\Attribute\Id|null,
              * property: \HbLib\ORM\Attribute\Property|null,
              * relationship: \HbLib\ORM\Attribute\Relationship|null,
              * } $classPropertyFactory
              */
             $classPropertyFactory = [
                 'name' => $property->getName(),
+                'id' => null,
                 'property' => null,
                 'relationship' => null,
             ];
@@ -95,17 +97,30 @@ class EntityMetadataFactory
                 $classPropertyFactory['relationship'] = $relationshipAttribute;
             }
 
-            if ($classPropertyFactory['relationship'] === null) {
-                $classProperties[$classPropertyFactory['name']] = new ClassProperty($classPropertyFactory['name'], $classPropertyFactory['property']);
-            } else {
-                $classProperties[$classPropertyFactory['name']] = new ClassPropertyRelation(
-                    $classPropertyFactory['name'],
-                    $classPropertyFactory['property'],
-                    $classPropertyFactory['relationship'],
-                );
+            $idAttributes = $property->getAttributes(HbLibAttrs\Id::class);
+
+            if ($classPropertyFactory['property'] !== null && count($idAttributes) > 0) {
+                $idAttributeInstance = $idAttributes[array_key_first($idAttributes)]->newInstance();
+
+                if (!($idAttributeInstance instanceof HbLibAttrs\Id)) {
+                    throw new LogicException('invalid instance');
+                }
+
+                $classPropertyFactory['id'] = $idAttributeInstance;
             }
 
-            if ($classPropertyFactory['property'] !== null && count($property->getAttributes(HbLibAttrs\Id::class)) > 0) {
+            if ($classPropertyFactory['property'] === null && $classPropertyFactory['relationship'] === null) {
+                continue;
+            }
+
+            $classProperties[$classPropertyFactory['name']] = new ClassProperty(
+                name: $classPropertyFactory['name'],
+                propertyAttribute: $classPropertyFactory['property'],
+                relationshipAttribute: $classPropertyFactory['relationship'],
+                idAttribute: $classPropertyFactory['id'],
+            );
+
+            if ($classPropertyFactory['id'] !== null) {
                 $idColumn = $classProperties[$classPropertyFactory['name']];
             }
         }
@@ -123,6 +138,10 @@ class EntityMetadataFactory
 
         if ($idColumn === null) {
             throw new LogicException('idColumn is null');
+        }
+
+        if ($idColumn->idAttribute === null) {
+            throw new LogicException('idColumn has no id attribute...');
         }
 
         $metadata = new EntityMetadata(
