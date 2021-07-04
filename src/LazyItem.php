@@ -24,7 +24,7 @@ final class LazyItem implements Item
 
     public function __construct(
         private EntityHydrator $hydrator,
-        private ClassPropertyRelation $relation,
+        private ClassProperty $relation,
         private int $id,
     ) {
         $this->loadedItem = null;
@@ -46,7 +46,7 @@ final class LazyItem implements Item
      */
     private function initialize()
     {
-        $rel = $this->relation->relationship;
+        $rel = $this->relation->relationshipAttribute;
 
         if (!($rel instanceof ManyToOne) && !($rel instanceof OneToOne)) {
             throw new LogicException('Expected ManyToOne or OneToOne');

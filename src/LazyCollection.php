@@ -19,7 +19,7 @@ class LazyCollection extends ArrayCollection
 
     public function __construct(
         private EntityHydrator $hydrator,
-        private ClassPropertyRelation $relation,
+        private ClassProperty $relation,
         private int $id,
     ) {
         parent::__construct([]);
@@ -87,7 +87,11 @@ class LazyCollection extends ArrayCollection
      */
     private function initialize()
     {
-        $rel = $this->relation->relationship;
+        $rel = $this->relation->relationshipAttribute;
+
+        if ($rel === null) {
+            throw new LogicException('Relationship is null');
+        }
 
         if ($rel instanceof OneToOne) {
             throw new LogicException('Unexpected OneToOne');

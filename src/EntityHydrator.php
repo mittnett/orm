@@ -134,13 +134,13 @@ class EntityHydrator
                     continue;
                 }
 
-                if ($property instanceof ClassPropertyRelation) {
+                if ($property->relationshipAttribute !== null) {
                     // handle the relationship present on this property. Note that the property might also be a database column.
 
-                    if ($property->relationship instanceof HbLibAttrs\ManyToOne || $property->relationship instanceof HbLibAttrs\OneToOne) {
+                    if ($property->relationshipAttribute instanceof HbLibAttrs\ManyToOne || $property->relationshipAttribute instanceof HbLibAttrs\OneToOne) {
                         // we are loading an Item here.
                         $relationId = (int) $row[$propertyName];
-                        $cacheKey = "{$property->relationship->targetEntity}_{$relationId}";
+                        $cacheKey = "{$property->relationshipAttribute->targetEntity}_{$relationId}";
 
                         if (array_key_exists($cacheKey, $this->lazyItemsCache) === true) {
                             $lazyItem = $this->lazyItemsCache[$cacheKey]->get();
@@ -155,14 +155,14 @@ class EntityHydrator
                         $this->lazyItemsCache[$cacheKey] = WeakReference::create($lazyItem);
 
                         $reflProperty->setValue($classInstance, $lazyItem);
-                    } else if ($property->relationship instanceof HbLibAttrs\OneToMany) {
+                    } else if ($property->relationshipAttribute instanceof HbLibAttrs\OneToMany) {
                         $reflProperty->setValue($classInstance, new LazyCollection(
                             hydrator: $this,
                             relation: $property,
-                            id: (int) $row[$property->relationship->ourColumn],
+                            id: (int) $row[$property->relationshipAttribute->ourColumn],
                         ));
                     } else {
-                        throw new LogicException('Unhandled relationship instance ' . $property->relationship::class);
+                        throw new LogicException('Unhandled relationship instance ' . $property->relationshipAttribute::class);
                     }
                     continue;
                 }

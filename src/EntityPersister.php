@@ -182,9 +182,8 @@ class EntityPersister
 
                     $insertPreparedStatement->execute(array_values($entitySnapshot->getData()));
 
-                    if ($idColumn instanceof ClassPropertyRelation && ($idColumn->relationship instanceof OneToOne || $idColumn->relationship instanceof ManyToOne)) {
+                    if ($idColumn->relationshipAttribute instanceof OneToOne || $idColumn->relationshipAttribute instanceof ManyToOne) {
                         // relation id property, set unloaded item for now.
-                        // FIXME: use LazyItem?
                         $idProperty->setValue($entity, new UnloadedItem((int) $this->databaseConnection->getLastInsertId()));
                     } else {
                         $idProperty->setValue($entity, $this->databaseConnection->getLastInsertId());
@@ -259,25 +258,24 @@ class EntityPersister
                 $relProperty = $reflection->getProperty($propName);
                 $relProperty->setAccessible(true);
 
-                if ($classProperty instanceof ClassPropertyRelation) {
-                    if ($classProperty->relationship instanceof ManyToOne || $classProperty->relationship instanceof OneToOne) {
-                        $item = $relProperty->getValue($entity);
+                if ($classProperty->relationshipAttribute instanceof ManyToOne || $classProperty->relationshipAttribute instanceof OneToOne) {
+                    $item = $relProperty->getValue($entity);
 
-                        if ($item === null && $relProperty->getType()?->allowsNull() === true) {
-                            $entityData[$propName] = null;
-                            continue;
-                        }
-
-                        if ($item instanceof LazyItem) {
-                            $entityData[$propName] = $item->getId();
-                        } else if ($item instanceof UnloadedItem) {
-                            $entityData[$propName] = $item->id;
-                        } else if ($item instanceof Item) {
-                            $entityData[$propName] = $item->get()->getId() ?? throw new LogicException('ID is null!');
-                        } else {
-                            throw new LogicException('Unhandled ' . $item::class);
-                        }
+                    if ($item === null && $relProperty->getType()?->allowsNull() === true) {
+                        $entityData[$propName] = null;
+                        continue;
                     }
+
+                    if ($item instanceof LazyItem) {
+                        $entityData[$propName] = $item->getId();
+                    } else if ($item instanceof UnloadedItem) {
+                        $entityData[$propName] = $item->id;
+                    } else if ($item instanceof Item) {
+                        $entityData[$propName] = $item->get()->getId() ?? throw new LogicException('ID is null!');
+                    } else {
+                        throw new LogicException('Unhandled ' . $item::class);
+                    }
+
                     continue;
                 }
 
