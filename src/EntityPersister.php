@@ -310,12 +310,20 @@ class EntityPersister
                 }
             }
 
-            $id = $idProperty->getValue($entity);
+            $id = null;
+
+            if ($idProperty->isInitialized($entity) === true) {
+                $id = $idProperty->getValue($entity);
+            }
 
             if ($id instanceof Item) {
                 // id is an item, get the ID of it and set to data.
                 $entityData[$idProperty->name] = $id->getId();
                 $id = $id->getId();
+            }
+
+            if (is_int($id) === false && $id !== null) {
+                throw new LogicException('ID must be int or null, it was: ' . gettype($id));
             }
 
             $result[$entity] = new EntitySnapshot($id, $entityData);
