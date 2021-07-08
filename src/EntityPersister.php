@@ -225,16 +225,22 @@ class EntityPersister
         $result = new WeakMap();
 
         $firstEntity = $entities[array_key_first($entities)];
+
+        if ($firstEntity instanceof Collection) {
+            throw new LogicException('Cant dump collection of entities, please provide an entity');
+        }
+
         $entityClassName = get_class($firstEntity);
-        foreach ($entities as $entity) {
+
+        array_walk($entities, static function (object &$entity) use ($entityClassName): void {
+            if ($entity instanceof Item) {
+                $entity = $entity->get();
+            }
+
             if (!($entity instanceof $entityClassName)) {
                 throw new LogicException('Multiple entities found!');
             }
-        }
-
-        if ($firstEntity instanceof Collection || $firstEntity instanceof Item) {
-            throw new LogicException('Cant dump collections or lazy items, please provide an entity');
-        }
+        });
 
         $metadata = $this->metadataFactory->getMetadata($entityClassName);
         $reflection = new ReflectionClass($metadata->getClassName());
