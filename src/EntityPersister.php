@@ -71,16 +71,10 @@ class EntityPersister
     {
         $currentEntityDataStorage = $this->dumpEntity($entities);
 
-        $entityClassName = get_class($entities[array_key_first($entities)]);
-        $metadata = $this->metadataFactory->getMetadata($entityClassName);
+        $this->assertSingleEntityInstance($entities);
 
+        $metadata = $this->metadataFactory->getMetadata(get_class($entities[array_key_first($entities)]));
         $idColumn = $metadata->getIdColumn();
-
-        foreach ($entities as $entity) {
-            if (!($entity instanceof $entityClassName)) {
-                throw new LogicException('Multiple entities found!');
-            }
-        }
 
         /** @phpstan-var array<int, array{object, EntitySnapshot}> $insertSnapshotsGroup */
         $insertSnapshotsGroup = [];
@@ -218,31 +212,40 @@ class EntityPersister
     /**
      * @phpstan-template T
      * @phpstan-param non-empty-array<T> $entities
+     * @param object[] $entities
+     */
+    public function delete(array $entities): void
+    {
+        $this->assertSingleEntityInstance($entities);
+
+        $metadata = $this->metadataFactory->getMetadata(get_class($entities[array_key_first($entities)]));
+        $idColumn = $metadata->getIdColumn();
+
+        $reflectionClass = new ReflectionClass($metadata->getClassName());
+        $idProperty = $reflectionClass->getProperty($idColumn->name);
+        $idProperty->setAccessible(true);
+
+        $entityIds = array_map(static fn (object $entity): int => $idProperty->getValue($entity), $entities);
+
+        $deleteQuery = $this->databaseConnection->prepare(
+            'DELETE FROM ' . $metadata->getTableName() . ' WHERE ' . $idColumn->getNameForDb()
+                . ' IN(?' . str_repeat(',?', count($entityIds) - 1) . ')',
+        );
+        $deleteQuery->execute(array_values($entityIds));
+    }
+
+    /**
+     * @phpstan-template T
+     * @phpstan-param non-empty-array<T> $entities
      * @phpstan-return WeakMap<EntitySnapshot>
      */
     private function dumpEntity(array $entities): WeakMap
     {
         $result = new WeakMap();
 
-        $firstEntity = $entities[array_key_first($entities)];
+        $this->assertSingleEntityInstance($entities);
 
-        if ($firstEntity instanceof Collection) {
-            throw new LogicException('Cant dump collection of entities, please provide an entity');
-        }
-
-        $entityClassName = get_class($firstEntity);
-
-        array_walk($entities, static function (object &$entity) use ($entityClassName): void {
-            if ($entity instanceof Item) {
-                $entity = $entity->get();
-            }
-
-            if (!($entity instanceof $entityClassName)) {
-                throw new LogicException('Multiple entities found!');
-            }
-        });
-
-        $metadata = $this->metadataFactory->getMetadata($entityClassName);
+        $metadata = $this->metadataFactory->getMetadata(get_class($entities[array_key_first($entities)]));
         $reflection = new ReflectionClass($metadata->getClassName());
 
         $idProperty = $reflection->getProperty($metadata->getIdColumn()->name);
@@ -336,5 +339,30 @@ class EntityPersister
         }
 
         return $result;
+    }
+
+    /**
+     * @template T
+     * @param non-empty-array<T> $entities
+     */
+    private function assertSingleEntityInstance(array $entities): void
+    {
+        $firstEntity = $entities[array_key_first($entities)];
+
+        if ($firstEntity instanceof Collection) {
+            throw new LogicException('Cant dump collection of entities, please provide an entity');
+        }
+
+        $entityClassName = get_class($firstEntity);
+
+        foreach ($entities as $entity) {
+            if ($entity instanceof Item) {
+                $entity = $entity->get();
+            }
+
+            if (!($entity instanceof $entityClassName)) {
+                throw new LogicException('Multiple entities found!');
+            }
+        }
     }
 }
