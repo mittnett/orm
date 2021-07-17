@@ -165,11 +165,15 @@ class EntityPersister
                     array_keys($firstEntitySnapshot->getData()),
                 );
 
-                $insertPreparedStatement = $this->databaseConnection->prepare(
-                    'INSERT INTO ' . $databaseDriver->quoteColumn($metadata->getTableName()) . '('
-                        . implode(', ', $definedPropertyDbNames)
-                        . ')VALUES(?' . str_repeat(',?', count($definedPropertyDbNames) - 1) . ')',
-                );
+                $insertStatementSql = 'INSERT INTO ' . $databaseDriver->quoteColumn($metadata->getTableName()) . '('
+                    . implode(', ', $definedPropertyDbNames)
+                    . ')VALUES(?' . str_repeat(',?', count($definedPropertyDbNames) - 1) . ')';
+
+                if ($databaseDriver instanceof PostgresDriver) {
+                    $insertStatementSql .= ' RETURNING ' . $databaseDriver->quoteColumn($idColumn->getNameForDb());
+                }
+
+                $insertPreparedStatement = $this->databaseConnection->prepare($insertStatementSql);
 
                 $definedPropertyNamesCount = count($definedPropertyDbNames);
 
