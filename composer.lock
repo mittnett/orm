@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "58c13e99d14fe32b42efea8ec53a97a1",
+    "content-hash": "ba78f8c381200a60e8735c2a2c97390d",
     "packages": [
         {
             "name": "mittnett/dbal",
-            "version": "v1.2.0",
+            "version": "v1.3.0",
             "source": {
                 "type": "git",
                 "url": "git@github.com:mittnett/dbal.git",
-                "reference": "8c510183fe33b9e13cb1397a772f658dd1a8fb52"
+                "reference": "c2c0d31c786f39523e3b22abff9b77de7e438a19"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mittnett/dbal/zipball/8c510183fe33b9e13cb1397a772f658dd1a8fb52",
-                "reference": "8c510183fe33b9e13cb1397a772f658dd1a8fb52",
+                "url": "https://api.github.com/repos/mittnett/dbal/zipball/c2c0d31c786f39523e3b22abff9b77de7e438a19",
+                "reference": "c2c0d31c786f39523e3b22abff9b77de7e438a19",
                 "shasum": ""
             },
             "require": {
@@ -44,10 +44,10 @@
                 "MIT"
             ],
             "support": {
-                "source": "https://github.com/mittnett/dbal/tree/v1.2.0",
+                "source": "https://github.com/mittnett/dbal/tree/v1.3.0",
                 "issues": "https://github.com/mittnett/dbal/issues"
             },
-            "time": "2021-06-15T19:45:13+00:00"
+            "time": "2021-07-17T11:01:10+00:00"
         },
         {
             "name": "psr/event-dispatcher",

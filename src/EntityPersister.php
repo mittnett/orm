@@ -5,6 +5,7 @@ namespace HbLib\ORM;
 
 use DateTimeInterface;
 use HbLib\DBAL\DatabaseConnectionInterface;
+use HbLib\DBAL\Driver\PostgresDriver;
 use HbLib\ORM\Attribute\ManyToOne;
 use HbLib\ORM\Attribute\OneToOne;
 use HbLib\ORM\Attribute\Property;
@@ -145,6 +146,8 @@ class EntityPersister
         }
 
         if (count($insertSnapshotsGroup) > 0) {
+            $databaseDriver = $this->databaseConnection->getDriver();
+
             /** @phpstan-var array<string, array<array{object, EntitySnapshot}>> $insertSnapshotsGroupedByNumberOfProperties */
             $insertSnapshotsGroupedByNumberOfProperties = [];
 
@@ -158,13 +161,14 @@ class EntityPersister
                 [, $firstEntitySnapshot] = $insertSnapshotPropertyGroup[array_key_first($insertSnapshotPropertyGroup)];
 
                 $definedPropertyDbNames = array_map(
-                    static fn (string $key): string => $metadataProperties[$key]->getNameForDb(),
-                    array_keys($firstEntitySnapshot->getData())
+                    static fn (string $key): string => $databaseDriver->quoteColumn($metadataProperties[$key]->getNameForDb()),
+                    array_keys($firstEntitySnapshot->getData()),
                 );
 
                 $insertPreparedStatement = $this->databaseConnection->prepare(
-                    'INSERT INTO ' . $metadata->getTableName() . '(' . implode(', ', $definedPropertyDbNames)
-                    . ')VALUES(?' . str_repeat(',?', count($definedPropertyDbNames) - 1) . ')',
+                    'INSERT INTO ' . $databaseDriver->quoteColumn($metadata->getTableName()) . '('
+                        . implode(', ', $definedPropertyDbNames)
+                        . ')VALUES(?' . str_repeat(',?', count($definedPropertyDbNames) - 1) . ')',
                 );
 
                 $definedPropertyNamesCount = count($definedPropertyDbNames);
@@ -178,9 +182,9 @@ class EntityPersister
 
                     if ($idColumn->relationshipAttribute instanceof OneToOne || $idColumn->relationshipAttribute instanceof ManyToOne) {
                         // relation id property, set unloaded item for now.
-                        $idProperty->setValue($entity, new UnloadedItem((int) $this->databaseConnection->getLastInsertId()));
+                        $idProperty->setValue($entity, new UnloadedItem($this->getInsertedId($insertPreparedStatement)));
                     } else {
-                        $idProperty->setValue($entity, $this->databaseConnection->getLastInsertId());
+                        $idProperty->setValue($entity, $this->getInsertedId($insertPreparedStatement));
                     }
                 }
 
@@ -191,15 +195,17 @@ class EntityPersister
         }
 
         if (count($updateSnapshots) > 0) {
+            $databaseDriver = $this->databaseConnection->getDriver();
+
             $updateSnapshots = array_reverse($updateSnapshots);
 
             while ($entitySnapshot = array_pop($updateSnapshots)) {
                 $updatePreparedStatement = $this->databaseConnection->prepare(
-                    'UPDATE ' . $metadata->getTableName() . ' SET '
+                    'UPDATE ' . $databaseDriver->quoteColumn($metadata->getTableName()) . ' SET '
                     . implode(', ', array_map(
-                        static fn (string $key): string => '`' . $metadataProperties[$key]->getNameForDb() . '` = ?',
+                        static fn (string $key): string => $databaseDriver->quoteColumn($metadataProperties[$key]->getNameForDb()) . ' = ?',
                         array_keys($entitySnapshot->getData()),
-                    )) . ' WHERE `id` = ?',
+                    )) . ' WHERE ' . $databaseDriver->quoteColumn($idColumn->getNameForDb()) . ' = ?',
                 );
 
                 $params = array_values($entitySnapshot->getData());
@@ -207,6 +213,17 @@ class EntityPersister
                 $updatePreparedStatement->execute($params);
             }
         }
+    }
+
+    private function getInsertedId(\PDOStatement $statement): int
+    {
+        $driver = $this->databaseConnection->getDriver();
+
+        if ($driver instanceof PostgresDriver) {
+            return (int) $statement->fetchColumn();
+        }
+
+        return $this->databaseConnection->getLastInsertId();
     }
 
     /**
@@ -227,8 +244,11 @@ class EntityPersister
 
         $entityIds = array_map(static fn (object $entity): int => $idProperty->getValue($entity), $entities);
 
+        $databaseDriver = $this->databaseConnection->getDriver();
+
         $deleteQuery = $this->databaseConnection->prepare(
-            'DELETE FROM ' . $metadata->getTableName() . ' WHERE ' . $idColumn->getNameForDb()
+            'DELETE FROM ' . $databaseDriver->quoteColumn($metadata->getTableName()) . ' WHERE '
+                . $databaseDriver->quoteColumn($idColumn->getNameForDb())
                 . ' IN(?' . str_repeat(',?', count($entityIds) - 1) . ')',
         );
         $deleteQuery->execute(array_values($entityIds));
