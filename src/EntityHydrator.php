@@ -183,12 +183,13 @@ class EntityHydrator
                             continue 2;
                         }
 
-                        if (array_key_exists($value, $immutableDateTimeCache) === false) {
-                            $format = (!$propertyAttribute->dtIsTime ? '!' : '') . $propertyAttribute->dtFormat;
-                            $immutableDateTimeCache[$value] = DateTimeImmutable::createFromFormat($format, $value);
+                        $dateTime = $immutableDateTimeCache[$value] ??= new DateTimeImmutable($value);
+
+                        if ($propertyAttribute->type === HbLibAttrs\Property::TYPE_DATE) {
+                            $dateTime = $dateTime->setTime(0, 0);
                         }
 
-                        $reflProperty->setValue($classInstance, $immutableDateTimeCache[$value]);
+                        $reflProperty->setValue($classInstance, $dateTime);
                         break;
 
                     case HbLibAttrs\Property::TYPE_BOOL:
