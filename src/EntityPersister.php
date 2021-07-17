@@ -7,6 +7,7 @@ use DateTimeInterface;
 use HbLib\DBAL\DatabaseConnectionInterface;
 use HbLib\DBAL\Driver\PostgresDriver;
 use HbLib\ORM\Attribute\ManyToOne;
+use HbLib\ORM\Attribute\OneToMany;
 use HbLib\ORM\Attribute\OneToOne;
 use HbLib\ORM\Attribute\Property;
 use LogicException;
@@ -82,6 +83,34 @@ class EntityPersister
         /** @phpstan-var array<EntitySnapshot> $updateSnapshots */
         $updateSnapshots = [];
 
+        $reflection = new ReflectionClass($metadata->getClassName());
+
+        $idProperty = $reflection->getProperty($idColumn->name);
+        $idProperty->setAccessible(true);
+
+        $metadataProperties = [];
+        $allMetadataPropertyKeys = array_keys($metadata->getProperties());
+
+        foreach ($metadata->getProperties() as $key => $metadataProperty) {
+            if ($metadataProperty === $idColumn && $idColumn->idAttribute !== null && $idColumn->idAttribute->autoIncrement === true) {
+                // ignore auto increment columns
+                continue;
+            }
+
+            if ($metadataProperty->relationshipAttribute instanceof OneToMany) {
+                // OneToMany is never an actual field
+                continue;
+            }
+
+            if ($metadataProperty->relationshipAttribute !== null && $metadataProperty->relationshipAttribute->ourColumn === null) {
+                // relationships with a non-existing metadata property can never work...
+                continue;
+            }
+
+            $metadataProperties[$key] = $metadataProperty;
+        }
+        unset($key, $allMetadataPropertyKeys);
+
         foreach ($entities as $entity) {
             /** @var EntitySnapshot $entitySnapshot */
             $entitySnapshot = $currentEntityDataStorage[$entity];
@@ -105,14 +134,21 @@ class EntityPersister
                 }
 
                 foreach ($storedEntitySnapshot->getData() as $key => $value) {
-                    if (array_key_exists($key, $currentEntityData) === false || $value !== $currentEntityData[$key]) {
+                    if (array_key_exists($key, $metadataProperties) === true
+                        && (array_key_exists($key, $currentEntityData) === false || $value !== $currentEntityData[$key])) {
                         $changedEntityData[$key] = $currentEntityData[$key];
                     }
                 }
 
                 unset($currentEntityData, $storedEntitySnapshot);
             } else {
-                $changedEntityData = $entitySnapshot->getData();
+                $changedEntityData = [];
+                
+                foreach ($entitySnapshot->getData() as $key => $value) {
+                    if (array_key_exists($key, $metadataProperties) === true) {
+                        $changedEntityData[$key] = $value;
+                    }
+                }
             }
 
             if (count($changedEntityData) === 0) {
@@ -131,18 +167,6 @@ class EntityPersister
             } else {
                 $updateSnapshots[] = $entitySnapshot;
             }
-        }
-
-        $reflection = new ReflectionClass($metadata->getClassName());
-
-        $idProperty = $reflection->getProperty($idColumn->name);
-        $idProperty->setAccessible(true);
-
-        $metadataProperties = $metadata->getProperties();
-
-        if ($idColumn->idAttribute !== null && $idColumn->idAttribute->autoIncrement === true) {
-            // when class property is not a relation we must not insert/update the column.
-            unset($metadataProperties[$idColumn->name]);
         }
 
         if (count($insertSnapshotsGroup) > 0) {

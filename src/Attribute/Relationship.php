@@ -12,7 +12,7 @@ abstract class Relationship
     public function __construct(
         public string $targetEntity,
         public string $theirColumn,
-        public string $ourColumn,
+        public ?string $ourColumn,
     ) {
     }
 }
