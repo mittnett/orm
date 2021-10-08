@@ -1,18 +1,7 @@
 {
   "name": "mittnett/orm",
-  "description": "",
+  "description": "ORM library intended for speed ",
   "license": "MIT",
-  "repositories": [
-    {
-      "type": "vcs",
-      "url": "git@github.com:mittnett/dbal.git",
-      "options": {
-        "ssl": {
-          "verify_peer": "true"
-        }
-      }
-    }
-  ],
   "require": {
     "php": ">=8.0.0 <9",
     "ext-pdo": "*",
