@@ -14,8 +14,10 @@ use function str_repeat;
  * Class EntityManager
  * @package HbLib\Sampar\ORM
  */
-class EntityManager
+class EntityManager implements EntityManagerInterface
 {
+    private \WeakMap $entityMap;
+
     public function __construct(
         private DatabaseConnectionInterface $databaseConnection,
         private EntityMetadataFactory $metadataFactory,
@@ -107,5 +109,82 @@ class EntityManager
     public function getMetadataFactory(): EntityMetadataFactory
     {
         return $this->metadataFactory;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function capture(array $entities): void
+    {
+        $entitiesByClassName = [];
+
+        foreach ($entities as $entity) {
+            $this->entityMap->offsetSet($entity, true);
+            $entitiesByClassName[$entity::class][] = $entity;
+        }
+
+        foreach ($entitiesByClassName as $entitiesGrouped) {
+            if (count($entitiesGrouped) > 0) {
+                $this->persister->capture($entitiesGrouped);
+            }
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function delete(array $entities): void
+    {
+        foreach ($this->groupEntitiesByClassName($entities) as $entitiesGrouped) {
+            if (count($entitiesGrouped) > 0) {
+                $this->persister->delete($entitiesGrouped);
+            }
+        }
+
+        foreach ($entities as $entity) {
+            $this->entityMap->offsetUnset($entity);
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function flush(?array $entities = null): void
+    {
+        $providedEntities = $entities;
+
+        if ($providedEntities === null) {
+            $entities = [];
+
+            foreach ($this->entityMap as $entity => $_value) {
+                $entities[] = $entity;
+            }
+        }
+
+        foreach ($this->groupEntitiesByClassName($entities) as $entitiesGrouped) {
+            if (count($entitiesGrouped) > 0) {
+                $this->persister->flush($entitiesGrouped);
+
+                if ($providedEntities === null) {
+                    $this->persister->capture($entitiesGrouped);
+                }
+            }
+        }
+    }
+
+    /**
+     * @template T
+     * @param array<T> $entities
+     * @return array<string, array<T>>
+     */
+    private function groupEntitiesByClassName(array $entities): array
+    {
+        $entitiesByClassName = [];
+
+        foreach ($entities as $entity) {
+            $entitiesByClassName[$entity::class][] = $entity;
+        }
+
+        return $entitiesByClassName;
     }
 }

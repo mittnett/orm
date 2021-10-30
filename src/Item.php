@@ -18,5 +18,5 @@ interface Item
     /**
      * @throws UnpersistedException
      */
-    public function getId(): int;
+    public function getId(): int|string;
 }

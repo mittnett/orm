@@ -143,7 +143,7 @@ class EntityPersister
                 unset($currentEntityData, $storedEntitySnapshot);
             } else {
                 $changedEntityData = [];
-                
+
                 foreach ($entitySnapshot->getData() as $key => $value) {
                     if (array_key_exists($key, $metadataProperties) === true) {
                         $changedEntityData[$key] = $value;
@@ -243,7 +243,7 @@ class EntityPersister
         }
     }
 
-    private function getInsertedId(\PDOStatement $statement): int
+    private function getInsertedId(\PDOStatement $statement): int|string
     {
         $driver = $this->databaseConnection->getDriver();
 
@@ -270,7 +270,7 @@ class EntityPersister
         $idProperty = $reflectionClass->getProperty($idColumn->name);
         $idProperty->setAccessible(true);
 
-        $entityIds = array_map(static fn (object $entity): int => $idProperty->getValue($entity), $entities);
+        $entityIds = array_map(static fn (object $entity): string|int => $idProperty->getValue($entity), $entities);
 
         $databaseDriver = $this->databaseConnection->getDriver();
 
@@ -379,8 +379,8 @@ class EntityPersister
                 $id = $id->getId();
             }
 
-            if (is_int($id) === false && $id !== null) {
-                throw new LogicException('ID must be int or null, it was: ' . gettype($id));
+            if ((is_string($id) === false || $id === '') && is_int($id) === false && $id !== null) {
+                throw new LogicException('ID must be string, int, or null, it was: ' . gettype($id));
             }
 
             $result[$entity] = new EntitySnapshot($id, $entityData);

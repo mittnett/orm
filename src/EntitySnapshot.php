@@ -9,12 +9,12 @@ class EntitySnapshot
      * @phpstan-param array<string, mixed> $data
      */
     public function __construct(
-        private ?int $id,
+        private string|int|null $id,
         private array $data,
     ) {
     }
 
-    public function getId(): ?int
+    public function getId(): string|int|null
     {
         return $this->id;
     }
