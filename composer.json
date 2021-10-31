@@ -11,11 +11,13 @@
   "require-dev": {
     "phpstan/phpstan": "^0.12.64",
     "fakerphp/faker": "^1.13",
-    "roave/security-advisories": "dev-latest"
+    "roave/security-advisories": "dev-latest",
+    "phpunit/phpunit": "^9.5"
   },
   "autoload": {
     "psr-4": {
-      "HbLib\\ORM\\": ["src"]
+      "HbLib\\ORM\\": ["src"],
+      "HbLib\\ORM\\Tests\\": ["tests"]
     }
   },
   "config": {

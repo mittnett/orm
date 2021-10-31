@@ -2,13 +2,11 @@
 
 set -e
 
-docker run --rm \
+podman run --rm \
 	--tty \
 	--interactive \
-	--env "PUID=$(id -u)" \
-	--env "PGID=$(id -g)" \
 	--volume $(pwd):/app \
 	--workdir /app \
-	hborm:latest \
+	hborm/php:8.0-cli \
   "$@"
 

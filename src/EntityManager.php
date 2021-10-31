@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace HbLib\ORM;
@@ -53,7 +54,7 @@ class EntityManager implements EntityManagerInterface
      * @param bool $forUpdateLock
      * @return T[]
      */
-    public function findById(string $className, array $ids, bool $forUpdateLock = false)
+    public function findById(string $className, array $ids, bool $forUpdateLock = false): array
     {
         if (count($ids) === 0) {
             return [];
@@ -142,32 +143,27 @@ class EntityManager implements EntityManagerInterface
         }
 
         foreach ($entities as $entity) {
-            $this->entityMap->offsetUnset($entity);
+            if ($this->entityMap->offsetExists($entity)) {
+                $this->entityMap->offsetUnset($entity);
+            }
         }
     }
 
     /**
      * {@inheritDoc}
      */
-    public function flush(?array $entities = null): void
+    public function flush(): void
     {
-        $providedEntities = $entities;
+        $entities = [];
 
-        if ($providedEntities === null) {
-            $entities = [];
-
-            foreach ($this->entityMap as $entity => $_value) {
-                $entities[] = $entity;
-            }
+        foreach ($this->entityMap as $entity => $_value) {
+            $entities[] = $entity;
         }
 
         foreach ($this->groupEntitiesByClassName($entities) as $entitiesGrouped) {
             if (count($entitiesGrouped) > 0) {
                 $this->persister->flush($entitiesGrouped);
-
-                if ($providedEntities === null) {
-                    $this->persister->capture($entitiesGrouped);
-                }
+                $this->persister->capture($entitiesGrouped);
             }
         }
     }

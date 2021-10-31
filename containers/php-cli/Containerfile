@@ -1,10 +1,12 @@
-FROM composer:2 AS composer_builder
+FROM docker.io/library/composer:2 AS composer_builder
 
-FROM php:8.0-cli
+FROM docker.io/library/php:8.0-cli
 
-RUN apt-get update && apt-get install --no-install-recommends -yqq bash git unzip \
+RUN apt-get update && apt-get install --no-install-recommends -yqq bash git unzip libpq-dev \
     && useradd -u 911 -U -d /config -s /bin/bash abc \
     && usermod -G users abc \
+    && docker-php-ext-install pdo_mysql pdo_pgsql \
+    && docker-php-ext-enable pdo_mysql pdo_pgsql \
     && mkdir -p /app /config \
     && pecl install pcov \
     && apt-get clean \

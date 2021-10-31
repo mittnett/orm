@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace HbLib\ORM;
@@ -57,16 +58,13 @@ interface EntityManagerInterface
     public function delete(array $entities): void;
 
     /**
-     * Flush any entity with UPDATE or INSERT based on:
-     * 1) INSERT if the entity is not known or has no ID when snapshotted.
-     * 2) UPDATE if the entity is known and has an ID
-     *
-     * If null is provided for $entities then all previously captured entities are flushed and recaptured.
-     *
-     * @phpstan-template T
-     * @param T[]|null $entities
+     * Update or create any entity that is known to the EntityManager if:
+     * 1) the entity has changed since capture, update
+     * 2) the entity has no ID, create
+     * 
+     * All entities are re-captured after flushing.
      */
-    public function flush(?array $entities = null): void;
+    public function flush(): void;
 
     public function getHydrator(): EntityHydrator;
 
