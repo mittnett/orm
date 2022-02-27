@@ -62,7 +62,7 @@ class LazyCollection extends ArrayCollection
         return parent::remove($object);
     }
 
-    public function getIterator()
+    public function getIterator(): \Traversable
     {
         if ($this->isInitialized === false) {
             $this->items = $this->initialize();
@@ -72,7 +72,7 @@ class LazyCollection extends ArrayCollection
         return parent::getIterator();
     }
 
-    public function count()
+    public function count(): int
     {
         if ($this->isInitialized === false) {
             $this->items = $this->initialize();

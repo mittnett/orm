@@ -30,7 +30,7 @@ class ArrayCollection implements Collection
      * @param int $offset
      * @return void
      */
-    public function offsetUnset($offset)
+    public function offsetUnset(mixed $offset): void
     {
         unset($this->items[$offset]);
     }
@@ -40,10 +40,10 @@ class ArrayCollection implements Collection
      * @param T $value
      * @return void
      */
-    public function offsetSet($offset, $value)
+    public function offsetSet(mixed $offset, mixed $value): void
     {
         if ($offset !== null) {
-            $this->items[$offset] = $value;
+            $this->items[(int) $offset] = $value;
         } else {
             $this->items[] = $value;
         }
@@ -53,18 +53,18 @@ class ArrayCollection implements Collection
      * @param int $offset
      * @return T|null
      */
-    public function offsetGet($offset)
+    public function offsetGet(mixed $offset): ?object
     {
-        return $this->items[$offset] ?? null;
+        return $this->items[(int) $offset] ?? null;
     }
 
     /**
      * @param int $offset
      * @return bool
      */
-    public function offsetExists($offset)
+    public function offsetExists(mixed $offset): bool
     {
-        return array_key_exists($offset, $this->items) === true;
+        return array_key_exists((int) $offset, $this->items) === true;
     }
 
     public function add($object): bool
@@ -94,12 +94,12 @@ class ArrayCollection implements Collection
         return false;
     }
 
-    public function getIterator()
+    public function getIterator(): \Traversable
     {
         yield from $this->items;
     }
 
-    public function count()
+    public function count(): int
     {
         return count($this->items);
     }
