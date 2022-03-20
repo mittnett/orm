@@ -60,8 +60,13 @@ class EntityPersister
         $currentEntitySnapshots = $this->dumpEntity($tracking);
 
         foreach ($tracking as $entity) {
-            $this->entityChangesets[$entity] = $currentEntitySnapshots[$entity];
+            $this->setEntitySnapshot($entity, $currentEntitySnapshots[$entity]);
         }
+    }
+
+    private function setEntitySnapshot(object $entity, EntitySnapshot $snapshot): void
+    {
+        $this->entityChangesets[$entity] = $snapshot;
     }
 
     /**
@@ -115,7 +120,9 @@ class EntityPersister
             /** @var EntitySnapshot $entitySnapshot */
             $entitySnapshot = $currentEntityDataStorage[$entity];
 
-            if ($idColumn->idAttribute !== null && $idColumn->idAttribute->autoIncrement === true) {
+            $hasAutoIncrementIdAttribute = $idColumn->idAttribute !== null && $idColumn->idAttribute->autoIncrement === true;
+
+            if ($hasAutoIncrementIdAttribute === true) {
                 $isInsert = $entitySnapshot->getId() === null;
             } else {
                 // when id column is a relation we must know about the entity before hand.
@@ -129,15 +136,18 @@ class EntityPersister
                 /** @var EntitySnapshot|null $storedEntitySnapshot */
                 $storedEntitySnapshot = $this->entityChangesets[$entity] ?? null;
 
-                if ($storedEntitySnapshot === null) {
-                    throw new LogicException('Entity has not been persisted');
-                }
-
-                foreach ($storedEntitySnapshot->getData() as $key => $value) {
-                    if (array_key_exists($key, $metadataProperties) === true
-                        && (array_key_exists($key, $currentEntityData) === false || $value !== $currentEntityData[$key])) {
-                        $changedEntityData[$key] = $currentEntityData[$key];
+                if ($storedEntitySnapshot !== null) {
+                    foreach ($storedEntitySnapshot->getData() as $key => $value) {
+                        if (array_key_exists($key, $metadataProperties) === true
+                            && (array_key_exists($key, $currentEntityData) === false || $value !== $currentEntityData[$key])) {
+                            $changedEntityData[$key] = $currentEntityData[$key];
+                        }
                     }
+                } else if ($hasAutoIncrementIdAttribute === true) {
+                    // just update everything.
+                    $changedEntityData = $currentEntityData;
+                } else {
+                    throw new LogicException('Entity has not been persisted');
                 }
 
                 unset($currentEntityData, $storedEntitySnapshot);
@@ -165,7 +175,7 @@ class EntityPersister
             if ($isInsert === true) {
                 $insertSnapshotsGroup[] = [$entity, $entitySnapshot];
             } else {
-                $updateSnapshots[] = $entitySnapshot;
+                $updateSnapshots[] = [$entity, $entitySnapshot];
             }
         }
 
@@ -208,6 +218,8 @@ class EntityPersister
 
                     $insertPreparedStatement->execute(array_values($entitySnapshot->getData()));
 
+                    $this->setEntitySnapshot($entity, $currentEntityDataStorage[$entity]);
+
                     if ($idColumn->relationshipAttribute instanceof OneToOne || $idColumn->relationshipAttribute instanceof ManyToOne) {
                         // relation id property, set unloaded item for now.
                         $idProperty->setValue($entity, new UnloadedItem($this->getInsertedId($insertPreparedStatement)));
@@ -225,21 +237,33 @@ class EntityPersister
         if (count($updateSnapshots) > 0) {
             $databaseDriver = $this->databaseConnection->getDriver();
 
-            $updateSnapshots = array_reverse($updateSnapshots);
+            $updateSnapshotsGroupedBySetColumns = [];
+            foreach ($updateSnapshots as $updateSnapshotGroup) {
+                $updateSnapshotColumnsKey = implode('-_-', array_keys($updateSnapshotGroup[1]->getData())) . '_' . count($updateSnapshotGroup[1]->getData());
+                $updateSnapshotsGroupedBySetColumns[$updateSnapshotColumnsKey][] = $updateSnapshotGroup;
+            }
 
-            while ($entitySnapshot = array_pop($updateSnapshots)) {
+            foreach ($updateSnapshotsGroupedBySetColumns as $updateSnapshotsGroup) {
+                [, $firstUpdateSnapshot] = $updateSnapshotsGroup[array_key_first($updateSnapshotsGroup)];
+
                 $updatePreparedStatement = $this->databaseConnection->prepare(
                     'UPDATE ' . $databaseDriver->quoteColumn($metadata->getTableName()) . ' SET '
                     . implode(', ', array_map(
                         static fn (string $key): string => $databaseDriver->quoteColumn($metadataProperties[$key]->getNameForDb()) . ' = ?',
-                        array_keys($entitySnapshot->getData()),
+                        array_keys($firstUpdateSnapshot->getData()),
                     )) . ' WHERE ' . $databaseDriver->quoteColumn($idColumn->getNameForDb()) . ' = ?',
                 );
 
-                $params = array_values($entitySnapshot->getData());
-                $params[] = $entitySnapshot->getId();
-                $updatePreparedStatement->execute($params);
+                foreach ($updateSnapshotsGroup as [$entity, $updateSnapshot]) {
+                    $params = array_values($updateSnapshot->getData());
+                    $params[] = $updateSnapshot->getId();
+                    $updatePreparedStatement->execute($params);
+
+                    $this->setEntitySnapshot($entity, $currentEntityDataStorage[$entity]);
+                }
             }
+
+            unset($updateSnapshotsGroupedBySetColumns);
         }
     }
 
@@ -251,7 +275,7 @@ class EntityPersister
             return (int) $statement->fetchColumn();
         }
 
-        return $this->databaseConnection->getLastInsertId();
+        return (int) $this->databaseConnection->getLastInsertId();
     }
 
     /**
@@ -323,12 +347,10 @@ class EntityPersister
                         continue;
                     }
 
-                    if ($item instanceof LazyItem) {
-                        $entityData[$propName] = $item->getId();
-                    } else if ($item instanceof UnloadedItem) {
+                    if ($item instanceof UnloadedItem) {
                         $entityData[$propName] = $item->id;
                     } else if ($item instanceof Item) {
-                        $entityData[$propName] = $item->get()->getId() ?? throw new LogicException('ID is null!');
+                        $entityData[$propName] = $item->getId();
                     } else {
                         throw new LogicException('Unhandled ' . $item::class);
                     }

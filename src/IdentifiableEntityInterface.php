@@ -5,5 +5,8 @@ namespace HbLib\ORM;
 
 interface IdentifiableEntityInterface
 {
-    public function getId(): ?int;
+    /**
+     * @throws UnpersistedException
+     */
+    public function getId(): int;
 }
