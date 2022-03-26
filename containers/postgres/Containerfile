@@ -1,0 +1,8 @@
+FROM docker.io/library/postgres:13
+
+ENV POSTGRES_DB app
+ENV POSTGRES_USER app
+ENV POSTGRES_PASSWORD secret
+
+COPY ./seed.sql /docker-entrypoint-initdb.d/
+

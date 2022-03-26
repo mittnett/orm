@@ -1,0 +1,7 @@
+# 10.5 is used by debian bullseye
+FROM docker.io/library/mariadb:10.5
+
+ENV MYSQL_ROOT_PASSWORD secret
+ENV MYSQL_DATABASE app
+ENV MYSQL_USER app
+ENV MYSQL_PASSWORD secret

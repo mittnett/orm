@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+if [ "$#" = 0 ] ; then
+        echo "Welcome"
+        exit 0
+fi
+
+exec "$@"

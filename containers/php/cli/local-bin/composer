@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+
+export COMPOSER_HOME=/home/app/.config/composer/
+export COMPOSER_CACHE=/home/app/.cache/composer/
+
+PHP_INI_SCAN_DIR=:/usr/local/etc/php/composer-conf.d/ \
+        exec /usr/local/bin/php /usr/bin/composer "$@"

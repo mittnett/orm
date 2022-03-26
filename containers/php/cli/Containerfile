@@ -1,0 +1,35 @@
+# vim: tabstop=4 shiftwidth=4 expandtab
+FROM docker.io/bitnami/git AS composer_pub_keys_builder
+
+RUN mkdir -p /tmp/composer-keys \
+    && curl -o /tmp/composer-keys/keys.dev.pub https://composer.github.io/snapshots.pub \
+    && curl -o /tmp/composer-keys/keys.tags.pub https://composer.github.io/releases.pub
+
+FROM docker.io/composer:2 AS composer_builder
+
+FROM docker.io/library/php:8.0-cli
+
+COPY --from=composer_builder /usr/bin/composer /usr/bin/composer
+
+RUN apt-get update \
+    && apt-get install -yqq --no-install-recommends libpq-dev curl libcurl4-openssl-dev unzip libzip-dev \
+    && docker-php-ext-install pdo pdo_pgsql pdo_mysql curl zip \
+    && pecl install redis xdebug \
+    && docker-php-ext-enable pdo pdo_pgsql pdo_mysql redis curl zip \
+    && apt-get clean \
+    && rm -rf \
+        '/tmp/*' \
+        '/var/lib/apt/lists/*' \
+        '/var/tmp/*'
+
+RUN mkdir -p /srv/app /tmp/php/upload/ /tmp/php/tmp/ /home/app/.cache/composer/ /home/app/.config/composer/ \
+	&& chown -R www-data:www-data /srv/app /tmp/php/
+
+COPY './php-conf.d/*.ini' /usr/local/etc/php/conf.d/
+COPY './php-composer-conf.d/*.ini' /usr/local/etc/php/composer-conf.d/
+COPY './local-bin/*' /usr/local/bin/
+COPY --from=composer_pub_keys_builder '/tmp/composer-keys/*.pub' /home/app/.config/composer/
+
+WORKDIR /srv/app/
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint"]

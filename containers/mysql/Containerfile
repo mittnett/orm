@@ -1,0 +1,8 @@
+# MySQL 8.0 is part of ubuntu 20.10
+FROM docker.io/library/mysql:8-debian
+
+ENV MYSQL_ROOT_PASSWORD secret
+ENV MYSQL_DATABASE app
+ENV MYSQL_USER app
+ENV MYSQL_PASSWORD secret
+

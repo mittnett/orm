@@ -8,31 +8,6 @@ $pdo = new PDO('mysql:host=127.0.0.1;dbname=app;charset=utf8', 'root', 'secret',
     PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8',
 ]);
 $db = new \HbLib\DBAL\DatabaseConnection($pdo, new \HbLib\DBAL\Driver\MySQLDriver());
-$db->query(<<<EOL
-DROP TABLE IF EXISTS companies;
-CREATE TABLE companies (
-    id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    responsible_employee_id INT(11) DEFAULT NULL,
-    created_at DATETIME NOT NULL,
-    updated_at DATETIME DEFAULT NULL
-) ENGINE=InnoDb
-EOL);
-
-$db->query(<<<EOL
-DROP TABLE IF EXISTS people;
-CREATE TABLE people (
-    id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    firstname VARCHAR(255) NOT NULL,
-    lastname VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    birthday DATE DEFAULT NULL,
-    company_id INT(11) DEFAULT NULL,
-    created_at DATETIME NOT NULL,
-    updated_at DATETIME DEFAULT NULL
-) ENGINE=InnoDb;
-EOL);
 
 #[\HbLib\ORM\Attribute\Entity(table: 'companies')]
 class Company implements \HbLib\ORM\Item {
@@ -90,7 +65,7 @@ class Company implements \HbLib\ORM\Item {
 }
 
 #[\HbLib\ORM\Attribute\Entity(table: 'people')]
-class Person {
+class Person implements \HbLib\ORM\IdentifiableEntityInterface {
     #[\HbLib\ORM\Attribute\Id, \HbLib\ORM\Attribute\Property(type: \HbLib\ORM\Attribute\Property::TYPE_INT)]
     private ?int $id;
 
@@ -139,6 +114,11 @@ class Person {
         $this->updatedAt = null;
     }
 
+    public function getId(): int
+    {
+        return $this->id ?? throw new \HbLib\ORM\UnpersistedException();
+    }
+
     /**
      * @return string
      */
@@ -175,13 +155,6 @@ $dispatcher = new class() implements \Psr\EventDispatcher\EventDispatcherInterfa
 $persister = new \HbLib\ORM\EntityPersister($db, $metadataFactory, $dispatcher);
 $hydrator = new \HbLib\ORM\EntityHydrator($db, $metadataFactory);
 
-$peopleQuery = $db->query('SELECT * FROM companies');
-$iterator = $hydrator->fromStatement(className:Company::class, statement: $peopleQuery, reuse: false);
-
-foreach ($iterator as $person) {
-    echo $person->getId() . PHP_EOL;
-}
-
 echo 'Mem: ' . human_filesize(memory_get_usage(true)) . PHP_EOL;
 
 $refs = [
@@ -189,7 +162,6 @@ $refs = [
     $metadataFactory->getMetadata(Person::class),
 ];
 
-$start = microtime(true);
 $faker = \Faker\Factory::create();
 
 function human_filesize($size, $precision = 2) {
@@ -203,51 +175,58 @@ function human_filesize($size, $precision = 2) {
     return round($size, $precision).$units[$i];
 }
 
-$companies = [];
-for ($i = 1; $i < 1_000; $i++) {
-    $company = new Company($faker->company);
-    $companies[] = $company;
-}
+$times = [];
 
-echo "Flush companies before, " . human_filesize(memory_get_usage(true)) . PHP_EOL;
-$persister->flush($companies);
-echo "Flush companies after, " . human_filesize(memory_get_usage(true)) . PHP_EOL;
+$run = static function () use ($db, $persister, $hydrator): void {
+    $companyStmt = $db->query('SELECT * FROM companies LIMIT 200');
 
-foreach (array_chunk($companies, 100) as $companyChunk) {
-    $people = [];
+    /** @var Company[] $companies */
+    $companies = $hydrator->fromStatementArray(
+        className: Company::class,
+        statement: $companyStmt,
+        reuse: false,
+    );
 
-    foreach ($companyChunk as $company) {
-        $max = random_int(1, 20);
-        for ($i2 = 0; $i2 < $max; $i2++) {
-            $person = new Person(
-                firstname: $faker->firstName,
-                lastname: $faker->lastName,
-                email: $faker->email,
-                password: $faker->password,
-                birthday: DateTimeImmutable::createFromMutable($faker->dateTime),
-            );
-            $person->setCompany($company);
+    //$persister->capture($companies);
 
-            $people[] = $person;
-        }
+    $personStmt = $db->prepare('SELECT * FROM people WHERE company_id = :company_id LIMIT 1');
+
+    foreach ($companies as $company) {
+        $personStmt->bindValue(':company_id', $company->getId(), \PDO::PARAM_INT);
+        $personStmt->execute();
+        /** @var Person[] $people */
+        $people = $hydrator->fromStatementArray(className: Person::class, statement: $personStmt, reuse: true);
+        $company->setResponsibleEmployee(new \HbLib\ORM\ObjectItem($people[array_key_first($people)]));
     }
 
-    $persister->flush($people);
+    $persister->flush($companies);
+};
 
-    echo "Flushed people, " . human_filesize(memory_get_usage(true)) . PHP_EOL;
+for ($i = 0; $i < 400; $i++) {
+    $start = microtime(true);
+    $run();
+
+    $times[] = microtime(true) - $start;
+    //echo round($times[array_key_last($times)], 4) . ' sec' . PHP_EOL;
 }
 
-echo 'Done ' . round(microtime(true) - $start, 2) . ' sec' . PHP_EOL;
+sort($times);
 
-$companyStmt = $db->query('SELECT * FROM companies');
-$companies = $hydrator->fromStatementArray(
-    className: Company::class,
-    statement: $companyStmt,
-    reuse: true,
-);
+$calcAverage = static fn (array $sums): float => array_sum($sums) / count($sums);
+$calcMedian = static function (array $sums): float {
+    $sumCount = count($sums);
+    $middleValueKey = floor(($sumCount - 1) / 2);
 
-$persister->capture($companies);
+    if ($sumCount % 2) {
+        return $sums[$middleValueKey];
+    }
 
-foreach ($companies as $company) {
-    $company->setActivated();
-}
+    $low = $sums[$middleValueKey];
+    $high = $sums[$middleValueKey + 1];
+
+    return ($low + $high) / 2;
+};
+
+echo 'Total: ' . round(array_sum($times), 4) . ' sec' . PHP_EOL;
+echo 'Average: ' . round($calcAverage($times), 4) . ' sec' . PHP_EOL;
+echo 'Median: ' . round($calcMedian($times), 4) . ' sec' . PHP_EOL;
