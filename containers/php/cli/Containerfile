@@ -27,6 +27,7 @@ RUN mkdir -p /srv/app /tmp/php/upload/ /tmp/php/tmp/ /home/app/.cache/composer/ 
 
 COPY './php-conf.d/*.ini' /usr/local/etc/php/conf.d/
 COPY './php-composer-conf.d/*.ini' /usr/local/etc/php/composer-conf.d/
+COPY './php-phpstan-conf.d/*.ini' /usr/local/etc/php/phpstan-conf.d/
 COPY './local-bin/*' /usr/local/bin/
 COPY --from=composer_pub_keys_builder '/tmp/composer-keys/*.pub' /home/app/.config/composer/
 

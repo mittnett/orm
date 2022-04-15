@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+PHP_INI_SCAN_DIR=:/usr/local/etc/php/phpstan-conf.d/ \
+        exec /usr/local/bin/php /srv/app/vendor/bin/phpstan "$@"

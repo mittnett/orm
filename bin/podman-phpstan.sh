@@ -16,5 +16,5 @@ podman run --rm \
 	--volume "$temp_volume_name:/tmp" \
 	--workdir /srv/app \
 	mittnett.net/orm/php:8.0-cli \
-	vendor/bin/phpstan analyse
+	phpstan analyse "$@"
 
