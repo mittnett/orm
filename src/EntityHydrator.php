@@ -192,6 +192,18 @@ class EntityHydrator
                         $reflProperty->setValue($classInstance, $dateTime);
                         break;
 
+                    case HbLibAttrs\Property::TYPE_ENUM:
+                        $enumClassName = $reflProperty->hasType() ? $reflProperty->getType()->getName() : null;
+
+                        if (is_string($enumClassName) === true && enum_exists($enumClassName) === true) {
+                            $enumFromCallable = $enumClassName::from(...);
+                            $enum = $enumFromCallable($row[$propertyName]);
+                            $reflProperty->setValue($classInstance, $enum);
+                            break;
+                        }
+
+                        throw new \LogicException('Failed to hydrate enum');
+
                     case HbLibAttrs\Property::TYPE_BOOL:
                         $reflProperty->setValue($classInstance, $row[$propertyName] == 1 ? true : false);
                         break;

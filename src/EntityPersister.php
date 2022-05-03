@@ -366,6 +366,11 @@ class EntityPersister
                         $entityData[$propName] = $propertyAttribute->dtFormat && $dt instanceof DateTimeInterface ? $dt->format($propertyAttribute->dtFormat) : null;
                         break;
 
+                    case Property::TYPE_ENUM:
+                        $enumInstance = $relProperty->getValue($entity);
+                        $entityData[$propName] = $enumInstance !== null ? $enumInstance->value : null;
+                        break;
+
                     case Property::TYPE_BOOL:
                         $entityData[$propName] = $relProperty->getValue($entity) === true ? 1 : 0;
                         break;
