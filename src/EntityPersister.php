@@ -351,10 +351,12 @@ class EntityPersister
                         continue;
                     }
 
-                    if ($item instanceof UnloadedItem) {
+                    if ($item instanceof LazyItem) {
+                        $entityData[$propName] = $item->getId();
+                    } else if ($item instanceof UnloadedItem) {
                         $entityData[$propName] = $item->id;
                     } else if ($item instanceof Item) {
-                        $entityData[$propName] = $item->getId();
+                        $entityData[$propName] = $item->get()->getId() ?? throw new LogicException('ID is null!');
                     } else {
                         throw new LogicException('Unhandled ' . $item::class);
                     }

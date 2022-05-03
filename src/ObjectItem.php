@@ -8,7 +8,7 @@ use function is_int;
 /**
  * Class ObjectItem
  * @package HbLib\ORM
- * @phpstan-template T
+ * @phpstan-template T of IdentifiableEntityInterface
  * @phpstan-implements Item<T>
  */
 final class ObjectItem implements Item

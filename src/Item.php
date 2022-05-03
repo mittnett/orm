@@ -6,11 +6,17 @@ namespace HbLib\ORM;
 /**
  * Interface Item
  * @package HbLib\ORM
+ * @phpstan-template T of IdentifiableEntityInterface
  */
-interface Item extends IdentifiableEntityInterface
+interface Item
 {
     /**
      * @return T
      */
     public function get();
+
+    /**
+     * @throws UnpersistedException
+     */
+    public function getId(): int;
 }

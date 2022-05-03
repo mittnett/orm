@@ -197,7 +197,10 @@ class EntityHydrator
                             throw new \RuntimeException('Enum can only be used with php 8.1. (enum_exists function do not exist)');
                         }
 
-                        $enumClassName = $reflProperty->hasType() ? $reflProperty->getType()->getName() : null;
+                        $reflPropertyType = $reflProperty->getType();
+                        $enumClassName = $reflPropertyType instanceof \ReflectionNamedType
+                            ? $reflPropertyType->getName()
+                            : null;
 
                         if (is_string($enumClassName) === true && enum_exists($enumClassName) === true) {
                             $enumFromCallable = \Closure::fromCallable([$enumClassName, 'from']);
