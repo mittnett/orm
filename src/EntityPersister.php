@@ -438,7 +438,7 @@ class EntityPersister
             throw new LogicException('Cant dump collection of entities, please provide an entity');
         }
 
-        $entityClassName = get_class($firstEntity);
+        $entityClassName = (string) get_class($firstEntity);
 
         foreach ($entities as $entity) {
             if ($entity instanceof Item) {
