@@ -76,9 +76,13 @@ class EntityPersister
      */
     public function flush(array $entities): void
     {
-        $currentEntityDataStorage = $this->dumpEntity($entities);
-
         $this->assertSingleEntityInstance($entities);
+
+        foreach ($entities as $entity) {
+            $this->eventDispatcher->dispatch(new EntityPersistBeforeDumpEvent($entity));
+        }
+
+        $currentEntityDataStorage = $this->dumpEntity($entities);
 
         $metadata = $this->metadataFactory->getMetadata(get_class($entities[array_key_first($entities)]));
         $idColumn = $metadata->getIdColumn();
