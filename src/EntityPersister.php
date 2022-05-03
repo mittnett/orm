@@ -371,6 +371,10 @@ class EntityPersister
                         break;
 
                     case Property::TYPE_ENUM:
+                        if (function_exists('enum_exists') === false) {
+                            throw new \RuntimeException('Enum can only be used with php 8.1. (enum_exists function do not exist)');
+                        }
+
                         $enumInstance = $relProperty->getValue($entity);
                         $entityData[$propName] = $enumInstance !== null ? $enumInstance->value : null;
                         break;

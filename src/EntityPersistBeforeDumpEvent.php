@@ -6,7 +6,7 @@ namespace HbLib\ORM;
 class EntityPersistBeforeDumpEvent
 {
     public function __construct(
-        public readonly object $entity,
+        public object $entity,
     ) {
         //
     }
