@@ -32,9 +32,9 @@ class EntityManager
      * @param bool $forUpdateLock
      * @return T|null
      */
-    public function find(string $className, int $id, bool $forUpdateLock = false)
+    public function find(string $className, int $id, bool $forUpdateLock = false, bool $reuse = true)
     {
-        $result = $this->findById($className, [$id], $forUpdateLock);
+        $result = $this->findById($className, [$id], $forUpdateLock, $reuse);
 
         return reset($result) ?: null;
     }
@@ -51,7 +51,7 @@ class EntityManager
      * @param bool $forUpdateLock
      * @return T[]
      */
-    public function findById(string $className, array $ids, bool $forUpdateLock = false)
+    public function findById(string $className, array $ids, bool $forUpdateLock = false, bool $reuse = true)
     {
         if (count($ids) === 0) {
             return [];
@@ -68,7 +68,7 @@ class EntityManager
         $stmt = $this->databaseConnection->prepare($sql);
         $stmt->execute(array_values($ids));
 
-        return $this->hydrator->fromStatementArray(className: $className, statement: $stmt, reuse: true);
+        return $this->hydrator->fromStatementArray(className: $className, statement: $stmt, reuse: $reuse);
     }
 
     /**
