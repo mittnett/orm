@@ -139,7 +139,12 @@ class EntityHydrator
 
                     if ($property->relationshipAttribute instanceof HbLibAttrs\ManyToOne || $property->relationshipAttribute instanceof HbLibAttrs\OneToOne) {
                         // we are loading an Item here.
-                        $relationId = (int) $row[$propertyName];
+                        if ($property->propertyAttribute === null) {
+                            $relationId = (int) $row[$property->relationshipAttribute->ourColumn];
+                        } else {
+                            $relationId = (int) $row[$propertyName];
+                        }
+
                         $cacheKey = "{$property->relationshipAttribute->targetEntity}_{$relationId}";
 
                         if (array_key_exists($cacheKey, $this->lazyItemsCache) === true) {
